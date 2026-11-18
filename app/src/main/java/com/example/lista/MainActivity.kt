@@ -1,3 +1,4 @@
+
 package com.example.lista
 
 import android.os.Bundle
@@ -7,17 +8,22 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -29,22 +35,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.lista.ui.theme.ListaTheme
-data class Participante(  //Define clase para almacenar datos
-    val nombre: String,  //var permite cambiar su valor, val no reasigna.
-    val alias: String
+
+
+// CLASE DE DATOS: define la información de cada participante.
+data class Participante(
+    val id: Int, // Identificador único del participante.
+    val nombre: String, // val impide reasignar la propiedad.
+    val alias: String,
+    val profesion: String
 )
 
+
+// ACTIVIDAD PRINCIPAL: inicia la aplicación Android.
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ListaTheme {  //MaterialThem si falla
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->  //permite respetar los espacios reservados para las barras del sistema
+        super.onCreate(savedInstanceState) // Inicializa la Activity.
+        enableEdgeToEdge() // Permite dibujar detrás de las barras del sistema.
+
+        setContent { // Define la interfaz con Jetpack Compose.
+            ListaTheme { // Aplica el tema de la aplicación.
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     PantallaTorneo(
-                        modifier =
-                            Modifier.padding(innerPadding)
-                        //MUESTRA PANTALLA COMPLETA, NO SOLO TEXTO
+                        modifier = Modifier.padding(innerPadding) // Respeta el espacio del Scaffold.
                     )
                 }
             }
@@ -52,97 +65,255 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-//CREAR PANTALLA PRINCIPAL TORNEO DONDE ESTÁ GRETING
+
+// PANTALLA PRINCIPAL: formulario, lista y gestión de participantes.
 @Composable
 fun PantallaTorneo(modifier: Modifier = Modifier) {
 
-    var nombre by rememberSaveable { mutableStateOf("") }
+    // ESTADOS DEL FORMULARIO
+    var nombre by rememberSaveable { mutableStateOf("") } // Conserva el texto y permite restaurarlo.
     var alias by rememberSaveable { mutableStateOf("") }
-    //BY NOS PERMITE ESCRIBIR EL NOMBRE DIRECTAMENTE, NO USAR nombre.value
-    //rememberSaveable PERMITE CONSERVAR EL VALOR DURANTE LA RECOMPOSICION (como al girar el movil)
-    //mUTABLEsTATEoF("") CREA UN ESTADO OBSRVABLE PARA Compose
+    var profesion by rememberSaveable { mutableStateOf("") }
 
+    // LISTA OBSERVABLE
     val participantes = remember {
-        mutableStateListOf<Participante>()
-        //mutable lista observable por Compose. Cuando añadimos o elminamos participantes, la interfaz
-        //puede reflejar los cambios automáticamente
-
-        //Remember hace que la lista se conserve durante la recomposicion
+        mutableStateListOf<Participante>() // Compose detecta altas, bajas y cambios de elementos.
     }
 
-    val formularioValido =
-        nombre.isNotBlank() && alias.isNotBlank() //isNotBlank COMPRUEBA QUE EL CAMPO NO ES ESTÁ VACIO
-   //SOLO INSCRIBIR PARTICIPANTES CON AMBOS CAMPOS TEXTO
+    // CONTROL DE PARTICIPANTES
+    var siguienteId by remember { mutableStateOf(1) } // ID del siguiente participante.
+    var idEnEdicion by remember { mutableStateOf<Int?>(null) } // null: no estamos editando.
+    var participanteAEliminar by remember { mutableStateOf<Participante?>(null) } // null: no hay confirmación pendiente.
 
-    Column( // CONTENEDOR COLOCA ELEMENTOS VERTICALMENTE
+    // VALIDACIÓN: todos los campos deben contener texto distinto de espacios.
+    val formularioValido =
+        nombre.isNotBlank() && alias.isNotBlank() && profesion.isNotBlank()
+
+    Column(
         modifier = modifier
-            .fillMaxSize() //PERMITE OCUPAR TODO EL ESPACIO
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)  //ESTABLECE UNA SEPARACIÓN VERTICAL ENTRE ELEMENTOS
+            .fillMaxSize() // Ocupa el espacio disponible.
+            .padding(16.dp), // Margen interior.
+        verticalArrangement = Arrangement.spacedBy(8.dp) // Separación vertical entre elementos.
     ) {
 
         Text(
             text = "Inscripción al torneo",
-            style = MaterialTheme.typography.headlineSmall
+            style = MaterialTheme.typography.headlineSmall // Estilo de título.
         )
 
-        OutlinedTextField( //CREAR UN CAMPO DONDE EL USUARIO PUEDA ESCRIBIR
-            value = nombre,
-            onValueChange = { nombre = it },//ACTUALIZA VARIABLE CADA VEZ QUE EL USUARIO ESCRIBE
-            label = { Text("Nombre") },//MUESTRA EL IDENTIFICADOR DEL CAMPO
-            singleLine = true,//EVITA QUE EL USUARIO ESCRIBA VARIAS LINEAS
-            modifier = Modifier.fillMaxWidth()//HACE QUE OCUPE TODO EL ANCHO DISPONIBLE
+        // CAMPO NOMBRE
+        OutlinedTextField(
+            value = nombre, // Texto almacenado en el estado.
+            onValueChange = { nombre = it }, // it es el nuevo texto introducido.
+            label = { Text("Nombre") }, // Etiqueta del campo.
+            singleLine = true, // Impide introducir varias líneas.
+            modifier = Modifier.fillMaxWidth() // Ocupa todo el ancho.
         )
 
+        // CAMPO ALIAS
         OutlinedTextField(
             value = alias,
-            onValueChange = { alias = it },//IT REPRESENTA AUTOMÁTICAMENTE EL NUEVO TEXTO INTRODUCIDO
+            onValueChange = { alias = it },
             label = { Text("Alias") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Button(//Añadir participantes mediante un botón
+        // CAMPO PROFESIÓN
+        OutlinedTextField(
+            value = profesion,
+            onValueChange = { profesion = it },
+            label = { Text("Profesión") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // BOTÓN: AÑADIR O GUARDAR CAMBIOS
+        Button(
             onClick = {
                 if (formularioValido) {
-                    val nuevo = Participante(
-                        nombre = nombre.trim(), //TRIM ELIMINA ESPACIOS EN BLANCO
-                        alias = alias.trim()
-                    )
 
-                    participantes.add(nuevo)
+                    val idActual = idEnEdicion // Comprueba si estamos editando.
 
+                    if (idActual == null) {
+
+                        // AÑADIR: crea un participante nuevo.
+                        val nuevo = Participante(
+                            id = siguienteId,
+                            nombre = nombre.trim(), // trim() elimina espacios al principio y final.
+                            alias = alias.trim(),
+                            profesion = profesion.trim()
+                        )
+
+                        participantes.add(nuevo) // Añade el objeto a la lista observable.
+                        siguienteId++ // Incrementa el ID para el próximo participante.
+
+                    } else {
+
+                        // EDITAR: busca el participante por su ID.
+                        val posicion = participantes.indexOfFirst {
+                            it.id == idActual // Devuelve la posición o -1 si no existe.
+                        }
+
+                        if (posicion != -1) {
+
+                            val participanteActual = participantes[posicion] // Obtiene el objeto existente.
+
+                            participantes[posicion] = participanteActual.copy(
+                                nombre = nombre.trim(),
+                                alias = alias.trim(),
+                                profesion = profesion.trim()
+                            ) // copy() crea una copia modificando los datos indicados.
+                        }
+                    }
+
+                    // LIMPIAR FORMULARIO DESPUÉS DE GUARDAR
                     nombre = ""
                     alias = ""
+                    profesion = ""
+                    idEnEdicion = null // Finaliza el modo edición.
                 }
             },
-            enabled = formularioValido,//BOTON DESACTIVADO SI FALTA ALGUN DATO
+            enabled = formularioValido, // Desactiva el botón si faltan datos.
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Añadir participante")
+            Text(
+                text = if (idEnEdicion == null) {
+                    "Añadir participante" // Modo creación.
+                } else {
+                    "Guardar cambios" // Modo edición.
+                }
+            )
         }
 
-        Text("Participantes inscritos: ${participantes.size}")//size dice cuantos participantes hay en la lista
+        // CANCELAR EDICIÓN: solo aparece si estamos editando.
+        if (idEnEdicion != null) {
+            Button(
+                onClick = {
+                    nombre = ""
+                    alias = ""
+                    profesion = ""
+                    idEnEdicion = null // Vuelve al modo añadir.
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Cancelar Edición")
+            }
+        }
 
-        if (participantes.isEmpty()) { //comprueba si la lsita está vacía
+        // CONTADOR: size devuelve el número de elementos.
+        Text("Participantes inscritos: ${participantes.size}")
+
+        // MENSAJE CUANDO LA LISTA ESTÁ VACÍA
+        if (participantes.isEmpty()) {
             Text("Todavía no hay participantes")
         }
 
-        LazyColumn( //CREAR LISTA VISUAL
+        // LISTA VERTICAL: muestra los participantes con desplazamiento.
+        LazyColumn(
             modifier = Modifier
-                .weight(1f) //hace que la lista ocupe el espacio vertical restante dentro de la columna
+                .weight(1f) // Ocupa la altura restante de la Column.
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(bottom = 16.dp) // Espacio al final de la lista.
         ) {
-            items(participantes) { participante -> //RECORRE LA LISTA Y CREA LA INTERFAZ PARA CADA ELEMENTO
-                TarjetaParticipante(participante) //mostrará sus datos
+            items(
+                items = participantes, // Colección que se va a mostrar.
+                key = { participante -> participante.id } // Identidad estable de cada elemento.
+            ) { participante ->
 
-                Button(  //  permitirá quitarlos
+                TarjetaParticipante(
+                    participante = participante, // Envía los datos a la tarjeta.
+
+                    onEditar = {
+                        idEnEdicion = participante.id // Activa la edición.
+                        nombre = participante.nombre // Carga sus datos en el formulario.
+                        alias = participante.alias
+                        profesion = participante.profesion
+                    },
+
+                    onEliminar = {
+                        participanteAEliminar = participante // Solicita confirmar la eliminación.
+                    }
+                )
+            }
+        }
+    }
+
+    // DIÁLOGO DE CONFIRMACIÓN DE ELIMINACIÓN
+    val pendiente = participanteAEliminar
+
+    if (pendiente != null) { // Solo muestra el diálogo si hay alguien pendiente de eliminar.
+
+        AlertDialog(
+            onDismissRequest = {
+                participanteAEliminar = null // Cierra el diálogo sin eliminar.
+            },
+
+            title = {
+                Text("Eliminar participante")
+            },
+
+            text = {
+                Text("¿Estás seguro de que quieres eliminar a ${pendiente.nombre}?")
+            },
+
+            confirmButton = {
+                TextButton(
                     onClick = {
-                        participantes.remove(participante)
+
+                        participantes.removeAll {
+                            it.id == pendiente.id // Elimina al participante por ID.
+                        }
+
+                        // Si estábamos editando al eliminado, limpiamos el formulario.
+                        if (idEnEdicion == pendiente.id) {
+                            nombre = ""
+                            alias = ""
+                            profesion = ""
+                            idEnEdicion = null
+                        }
+
+                        participanteAEliminar = null // Cierra el diálogo.
                     }
                 ) {
+                    Text("Eliminar")
+                }
+            }
+        )
+    }
+}
+
+
+// TARJETA: muestra los datos y botones de un participante.
+@Composable
+fun TarjetaParticipante(
+    participante: Participante, // Objeto que contiene los datos.
+    onEditar: () -> Unit, // Callback sin parámetros ni valor de retorno.
+    onEliminar: () -> Unit
+) {
+
+    Card(modifier = Modifier.fillMaxWidth()) { // Tarjeta Material Design.
+
+        Column(modifier = Modifier.padding(12.dp)) { // Organiza los datos en vertical.
+
+            Text(
+                text = "ID: ${participante.id} Nombre: ${participante.nombre}",
+                style = MaterialTheme.typography.titleMedium // Destaca el nombre.
+            )
+
+            Text(text = "Alias: ${participante.alias}")
+            Text(text = "Profesión: ${participante.profesion}")
+
+            Row { // Organiza los botones horizontalmente.
+
+                Button(onClick = onEditar) { // Ejecuta la acción recibida.
+                    Text("Editar")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp)) // Separación horizontal.
+
+                Button(onClick = onEliminar) { // Solicita confirmación de eliminación.
                     Text("Eliminar")
                 }
             }
@@ -150,32 +321,15 @@ fun PantallaTorneo(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable  //funcion recibe objeto Participante y dibuja tarjeta con su info
-fun TarjetaParticipante(participante: Participante) {
-    Card(modifier = Modifier.fillMaxWidth()) {  //porporciona contenedor visual con estilo Material Design
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(
-                text = participante.nombre,
-                style = MaterialTheme.typography.titleMedium //utiliza uno de los estilos tipográficos de Material Design para destacar el nombre.
-            )
 
-            Text(
-                text = "Alias: ${participante.alias}"
-            )
-        }
-    }
-}
-
-
-@Preview(
-    showSystemUi = true, //vista previa puede incluir elementos del sistema Android, como la barra de estado.
-    showBackground = true
-)
+// VISTA PREVIA: permite visualizar la pantalla sin ejecutar el emulador.
+@Preview(showSystemUi = true, showBackground = true)
 @Composable
 fun PantallaTorneoPreview() {
     ListaTheme {
         PantallaTorneo()
     }
 }
+
 
 //
